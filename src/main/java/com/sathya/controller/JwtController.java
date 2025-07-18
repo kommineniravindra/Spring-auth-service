@@ -1,15 +1,13 @@
 package com.sathya.controller;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
 import com.sathya.dto.LoginDetails;
 import com.sathya.entity.User;
 import com.sathya.service.UserService;
 import com.sathya.util.JwtUtil;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -18,18 +16,10 @@ public class JwtController {
 
     private final UserService userService;
 
-    // ✅ Signup Endpoint
+    // ✅ Signup: Any user can register (ADMIN or USER)
     @PostMapping("/signup")
     public ResponseEntity<String> signup(@RequestBody User user) {
         try {
-            // 🔒 Allow only "Ravindra" to sign up as ADMIN
-            if ("ADMIN".equalsIgnoreCase(user.getRole()) &&
-                !"Ravindra".equalsIgnoreCase(user.getUsername())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("❌ Only 'Ravindra' is allowed to register as ADMIN");
-            }
-
-            // 🟢 Allow all users to register as USER
             User savedUser = userService.registerUser(user);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body("✅ Signup successful for user: " + savedUser.getUsername());
@@ -39,29 +29,21 @@ public class JwtController {
         }
     }
 
-    // ✅ Login Endpoint
+    // ✅ Login: Allow all users (ADMIN or USER)
     @PostMapping("/login")
     public ResponseEntity<String> login(@RequestBody LoginDetails loginDetails) {
         User user = userService.validateUser(loginDetails.getUsername(), loginDetails.getPassword());
 
-        if (user != null) {
-            // 🔒 Block any ADMIN login except Ravindra
-            if ("ADMIN".equalsIgnoreCase(user.getRole()) &&
-                !"Ravindra".equalsIgnoreCase(user.getUsername())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("❌ Unauthorized ADMIN login attempt");
-            }
-
-            // ✅ Generate token and allow login
-            String token = JwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId());
-            return ResponseEntity.ok(token);
-        } else {
+        if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("❌ Invalid username or password");
         }
+
+        String token = JwtUtil.generateToken(user.getUsername(), user.getRole(), user.getId());
+        return ResponseEntity.ok(token);
     }
 
-    // ✅ Validate JWT and extract role
+    // ✅ Validate token and return user role
     @GetMapping("/validate")
     public ResponseEntity<String> validateToken(@RequestHeader("Authorization") String tokenHeader) {
         try {
@@ -73,7 +55,7 @@ public class JwtController {
         }
     }
 
-    // ✅ Extract user ID from JWT
+    // ✅ Extract user ID from token
     @GetMapping("/user-id")
     public ResponseEntity<Long> extractUserId(@RequestHeader("Authorization") String tokenHeader) {
         try {
