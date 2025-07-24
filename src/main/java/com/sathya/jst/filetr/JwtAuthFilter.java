@@ -1,6 +1,5 @@
 package com.sathya.jst.filetr;
 
-
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -25,30 +24,41 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
+        String token = null;
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            try {
-                String token = authHeader.substring(7);
-                String username = JwtUtil.extractUsername(token);
-                String role = JwtUtil.extractRole(token);
+            token = authHeader.substring(7); 
+        }
 
-                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+       
+        if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            try {
+                String username = JwtUtil.extractUsername(token);
+                String role = JwtUtil.extractRole(token); // Get the role from the token
+
+                if (username != null) {
+                 
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     username,
                                     null,
-                                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role)) 
                             );
+                    
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             } catch (Exception e) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                
+                System.err.println("JWT Authentication failed: " + e.getMessage());
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); 
                 response.getWriter().write("Invalid or expired token");
-                return;
+                return; 
             }
         }
 
+        
         filterChain.doFilter(request, response);
     }
 }
